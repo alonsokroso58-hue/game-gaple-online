@@ -275,6 +275,26 @@ header {
   height: 60px;
 }
 
+/* KELAS TAMBAHAN UNTUK KARTU BALAK VERTIKAL DI MEJA */
+.card-board.vertical {
+  width: 60px;
+  height: 32px;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 3px;
+}
+
+.card-board.vertical .card-divider {
+  width: 3px;
+  height: 90%;
+  margin: 0 1px;
+}
+
+.card-board.vertical .domino-half {
+  width: 27px;
+  height: 100%;
+}
+
 /* GARIS PEMBATAS TENGAH WARNA HIJAU */
 .card-divider {
   width: 90%;
@@ -476,4 +496,56 @@ header {
   border-radius: 4px;
   font-weight: bold;
   cursor: pointer;
+}
+
+/* ==========================================
+   STYLE PERINGATAN PUTAR HP KE LANDSCAPE
+   ========================================== */
+#landscape-warning {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #0f172a;
+  z-index: 99999;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+  color: #fff;
+}
+
+#landscape-warning .rotate-icon {
+  font-size: 50px;
+  margin-bottom: 15px;
+  animation: rotatePhone 2s infinite ease-in-out;
+}
+
+@keyframes rotatePhone {
+  0% { transform: rotate(0deg); }
+  50% { transform: rotate(90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+#landscape-warning h2 {
+  color: #facc15;
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+#landscape-warning p {
+  font-size: 13px;
+  color: #94a3b8;
+  max-width: 280px;
+  line-height: 1.4;
+}
+
+/* Menampilkan pop-up peringatan jika perangkat seluler dibuka dalam posisi tegak (potret) */
+@media screen and (max-width: 900px) and (orientation: portrait) {
+  #landscape-warning {
+    display: flex;
+  }
 }
