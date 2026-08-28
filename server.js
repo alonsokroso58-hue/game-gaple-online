@@ -21,6 +21,7 @@ const FULL_DECK = [
 
 let players = []; 
 let gameMode = 'single'; // 'single' (tunggal) atau 'team' (ganda)
+let tablePot = 0;        // Variabel penampung koin pot di tengah meja
 
 let gameState = {
   board: [],
@@ -69,6 +70,7 @@ io.on('connection', (socket) => {
     // Jika ini pemain pertama, tetapkan mode permainan meja
     if (players.length === 0) {
       gameMode = mode;
+      tablePot = 0; // Reset pot saat meja baru dimulai
     }
 
     // Tentukan pembagian tim jika mode 'team' (Ganda: Tim 0 untuk idx 0 & 2, Tim 1 untuk idx 1 & 3)
@@ -78,6 +80,7 @@ io.on('connection', (socket) => {
       id: socket.id,
       name: name || `Pemain ${players.length + 1}`,
       hand: [],
+      coins: 10000, // Saldo awal koin pemain
       team: assignedTeam
     };
 
@@ -175,13 +178,18 @@ io.on('connection', (socket) => {
     if (player.hand.length === 0) {
       let winnerName = player.name;
       
-      // Jika mode Ganda (Team), jika kartu habis, tim tersebut menang
+      // Berikan seluruh pot ke pemenang
+      player.coins += tablePot;
+      let totalWon = tablePot;
+      tablePot = 0; // Kosongkan pot setelah dimenangkan
+
       if (gameMode === 'team') {
         const partner = players.find(p => p.team === player.team && p.id !== player.id);
         winnerName = partner ? `${player.name} & ${partner.name} (Tim ${player.team + 1})` : `${player.name} (Tim ${player.team + 1})`;
+        if (partner) partner.coins += totalWon / 2; // Bagi rata ke partner jika tim
       }
 
-      io.emit('game_over', { winner: winnerName, reason: 'Kartu di tangan habis!' });
+      io.emit('game_over', { winner: winnerName, reason: `Kartu di tangan habis! Memenangkan ${totalWon.toLocaleString()} koin dari pot.` });
       gameState.isStarted = false;
       broadcastGameState();
     } else {
@@ -189,7 +197,7 @@ io.on('connection', (socket) => {
     }
   }
 
-  // PASS / LEWAT DAN PENANGANAN GAME BUNTU (GEPUK)
+  // PASS / LEWAT DAN PENANGANAN PEMOTONGAN SALDO KOIN (-100)
   socket.on('pass_turn', () => {
     if (!gameState.isStarted) return;
     const currentPlayer = players[gameState.turnIndex];
@@ -200,8 +208,18 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // Potong koin pemain sebesar 100 koin dan masukkan ke pot meja
+      const penalty = 100;
+      if (currentPlayer.coins >= penalty) {
+        currentPlayer.coins -= penalty;
+        tablePot += penalty;
+      } else {
+        tablePot += currentPlayer.coins;
+        currentPlayer.coins = 0; // Jika koin kurang dari denda
+      }
+
       gameState.consecutivePasses++;
-      io.emit('receive_message', { sender: 'System', text: `${currentPlayer.name} melewati giliran (PASS).` });
+      io.emit('receive_message', { sender: 'System', text: `${currentPlayer.name} melewati giliran (PASS) dan didenda 100 koin.` });
 
       // JIKA SEMUA PEMAIN PASS BERTURUT-TURUT -> GAME BUNTU / GEPUK!
       if (gameState.consecutivePasses >= players.length) {
@@ -217,7 +235,6 @@ io.on('connection', (socket) => {
     let scoresSummary = [];
 
     if (gameMode === 'team') {
-      // Hitung total poin gabungan per tim
       let teamScores = [0, 0];
       let teamDetails = [[], []];
 
@@ -231,13 +248,21 @@ io.on('connection', (socket) => {
       scoresSummary.push(`Tim 2: ${teamScores[1]} titik [${teamDetails[1].join(', ')}]`);
 
       let winningTeam = teamScores[0] < teamScores[1] ? 0 : 1;
-      if (teamScores[0] === teamScores[1]) winningTeam = 0; // Seri, dimenangkan tim 1
+      if (teamScores[0] === teamScores[1]) winningTeam = 0;
 
-      const members = players.filter(p => p.team === winningTeam).map(p => p.name).join(' & ');
+      // Bagikan pot ke pemenang tim
+      const winningTeamPlayers = players.filter(p => p.team === winningTeam);
+      const share = Math.floor(tablePot / winningTeamPlayers.length);
+      winningTeamPlayers.forEach(p => p.coins += share);
+      
+      const wonAmount = tablePot;
+      tablePot = 0;
+
+      const members = winningTeamPlayers.map(p => p.name).join(' & ');
 
       io.emit('game_over', { 
         winner: `Tim ${winningTeam + 1} (${members})`, 
-        reason: `Permainan BUNTU! Pemenang adalah Tim dengan total titik terkecil (${teamScores[winningTeam]} titik). Rincian: [${scoresSummary.join(' | ')}]` 
+        reason: `Permainan BUNTU! Tim dengan titik terkecil menang (${teamScores[winningTeam]} titik) dan mendapatkan ${wonAmount.toLocaleString()} koin pot. Rincian: [${scoresSummary.join(' | ')}]` 
       });
 
     } else {
@@ -253,10 +278,17 @@ io.on('connection', (socket) => {
         }
       });
 
+      // Berikan pot ke pemain dengan titik terkecil
+      if (winner) {
+        winner.coins += tablePot;
+      }
+      const wonAmount = tablePot;
+      tablePot = 0;
+
       const summaryText = scoresSummary.join(', ');
       io.emit('game_over', { 
         winner: winner.name, 
-        reason: `Permainan BUNTU! Pemenang adalah yang memiliki titik terkecil (${winner.name} dengan ${minScore} titik). Total titik: [${summaryText}]` 
+        reason: `Permainan BUNTU! Pemenang titik terkecil: ${winner.name} (${minScore} titik) dan membawa pulang ${wonAmount.toLocaleString()} koin pot. Total titik: [${summaryText}]` 
       });
     }
     
@@ -270,6 +302,11 @@ io.on('connection', (socket) => {
     const player = players.find(p => p.id === socket.id);
     const senderName = player ? player.name : 'Tamu';
     io.emit('receive_message', { sender: senderName, text: msgText.trim() });
+  });
+
+  // SINKRONISASI EFEK SUARA EJEKAN / REAKSI PROFIL KE PEMAIN LAIN
+  socket.on('play_sound_effect', (soundFile) => {
+    socket.broadcast.emit('trigger_sound', soundFile);
   });
 
   // DISCONNECT
@@ -303,12 +340,15 @@ io.on('connection', (socket) => {
         isStarted: gameState.isStarted,
         board: gameState.board,
         myHand: p.hand,
+        myCoins: p.coins,         // Mengirimkan koin pemain yang bersangkutan
+        tablePot: tablePot,       // Mengirimkan total pot meja
         isMyTurn: isMyTurn,
         canPass: canPass,
         playersSummary: players.map((pl, idx) => ({
           id: pl.id,
           name: pl.name,
           cardCount: pl.hand.length,
+          coins: pl.coins,        // Mengirimkan sisa koin untuk slot pemain lain
           isTurn: gameState.isStarted && idx === gameState.turnIndex,
           team: pl.team
         }))
