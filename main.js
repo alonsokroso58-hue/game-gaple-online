@@ -110,10 +110,17 @@ function createDominoHalf(value) {
   return half;
 }
 
-// 4. MASUK MEJA & KONTROL
+// 4. MASUK MEJA & KONTROL (DENGAN LANDSCAPE ORIENTATION LOCK OTOMATIS)
 btnJoin.addEventListener('click', () => {
   const name = usernameInput.value.trim();
   if (name) {
+    // Coba kunci layar ke mode landscape secara otomatis jika didukung browser HP
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(err => {
+        console.log("Orientation lock tidak didukung atau ditolak:", err);
+      });
+    }
+
     socket.emit('join_game', { name: name, mode: selectedMode });
     loginModal.style.display = 'none';
   }
@@ -218,14 +225,18 @@ function renderHand(cards) {
   });
 }
 
-// 7. RENDER KARTU MEJA
+// 7. RENDER KARTU MEJA (DENGAN PENYESUAIAN POSISI BALAK VERTIKAL)
 function renderBoard(board) {
   boardDiv.innerHTML = '';
   if (!board || board.length === 0) return;
 
   board.forEach(card => {
     const cardEl = document.createElement('div');
-    cardEl.className = 'card-board';
+    
+    // Cek apakah kartu adalah balak (angka kembar, misal 3-3, 6-6)
+    // Jika ya, tambahkan kelas 'vertical' agar kartu berdiri tegak di meja
+    const isDouble = (card[0] === card[1]);
+    cardEl.className = isDouble ? 'card-board vertical' : 'card-board';
 
     const topHalf = createDominoHalf(card[0]);
     const divider = document.createElement('div');
