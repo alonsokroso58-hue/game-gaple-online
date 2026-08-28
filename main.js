@@ -16,6 +16,10 @@ const playerTop = document.getElementById('player-top');
 const playerLeft = document.getElementById('player-left');
 const playerRight = document.getElementById('player-right');
 
+// Pot & Coins Elements
+const potAmountDisplay = document.getElementById('pot-amount');
+const myCoinsDisplay = document.getElementById('my-coins'); // Opsional jika ada di hand area
+
 // Chat & Emoji Elements
 const btnToggleChat = document.getElementById('btn-toggle-chat');
 const chatBox = document.getElementById('chat-box');
@@ -114,7 +118,6 @@ function createDominoHalf(value) {
 btnJoin.addEventListener('click', () => {
   const name = usernameInput.value.trim();
   if (name) {
-    // Coba kunci layar ke mode landscape secara otomatis jika didukung browser HP
     if (screen.orientation && screen.orientation.lock) {
       screen.orientation.lock('landscape').catch(err => {
         console.log("Orientation lock tidak didukung atau ditolak:", err);
@@ -132,7 +135,7 @@ usernameInput.addEventListener('keypress', (e) => {
 
 btnStartGame.addEventListener('click', () => socket.emit('start_game_req'));
 
-// TOMBOL PASS / LEWAT DITAMBAHKAN EFEK SOUND 'lewat.mp3'
+// TOMBOL PASS / LEWAT DITAMBAHKAN EFEK SOUND 'lewat.mp3' DAN PEMOTONGAN KOIN (-100)
 btnPass.addEventListener('click', () => {
   playSoundEffect('lewat.mp3');
   socket.emit('pass_turn');
@@ -237,9 +240,6 @@ function renderBoard(board) {
 
   board.forEach(card => {
     const cardEl = document.createElement('div');
-    
-    // Cek apakah kartu adalah balak (angka kembar, misal 3-3, 6-6)
-    // Jika ya, tambahkan kelas 'vertical' agar kartu berdiri tegak di meja
     const isDouble = (card[0] === card[1]);
     cardEl.className = isDouble ? 'card-board vertical' : 'card-board';
 
@@ -256,10 +256,16 @@ function renderBoard(board) {
   });
 }
 
-// Helper untuk membuat atau memperbarui elemen badge tim di slot pemain
+// Helper untuk memperbarui slot pemain (Nama, Kartu, Koin, dan Tim)
 function updatePlayerSlotContent(el, opponent) {
   el.querySelector('.p-name').innerText = opponent.name;
   el.querySelector('.p-cards').innerText = `Kartu: ${opponent.cardCount}`;
+
+  // Update koin pemain jika disediakan oleh server
+  const coinEl = el.querySelector('.p-coins');
+  if (coinEl && opponent.coins !== undefined) {
+    coinEl.innerText = `Koin: ${opponent.coins.toLocaleString()}`;
+  }
 
   let teamBadge = el.querySelector('.p-team');
   if (opponent.team !== null && opponent.team !== undefined) {
@@ -277,12 +283,22 @@ function updatePlayerSlotContent(el, opponent) {
   }
 }
 
-// 8. UPDATE STATE REALTIME
+// 8. UPDATE STATE REALTIME (TERMASUK POT MEJA DAN KOIN)
 socket.on('update_board', (data) => {
   renderBoard(data.board);
 
   if (data.myHand) renderHand(data.myHand);
   btnPass.disabled = !data.canPass;
+
+  // Sinkronisasi Pot Meja
+  if (data.tablePot !== undefined && potAmountDisplay) {
+    potAmountDisplay.innerText = data.tablePot.toLocaleString();
+  }
+
+  // Sinkronisasi Koin Pemain Sendiri (Jika dikirim server)
+  if (data.myCoins !== undefined && myCoinsDisplay) {
+    myCoinsDisplay.innerText = data.myCoins.toLocaleString();
+  }
 
   if (data.isStarted) {
     btnStartGame.style.display = 'none';
@@ -300,6 +316,8 @@ socket.on('update_board', (data) => {
       el.classList.remove('active-turn');
       el.querySelector('.p-name').innerText = 'Kosong';
       el.querySelector('.p-cards').innerText = 'Kartu: -';
+      const coinEl = el.querySelector('.p-coins');
+      if (coinEl) coinEl.innerText = 'Koin: 10,000';
       const teamBadge = el.querySelector('.p-team');
       if (teamBadge) teamBadge.style.display = 'none';
     }
@@ -338,7 +356,6 @@ socket.on('game_over', (data) => {
     const nameText = slot.querySelector('.p-name').innerText;
     if (nameText === 'Kosong') return;
 
-    // Tutup menu profil lain yang terbuka
     document.querySelectorAll('.profile-reaction-menu').forEach(menu => {
       if (menu !== slot.querySelector('.profile-reaction-menu')) {
         menu.style.display = 'none';
@@ -352,10 +369,9 @@ socket.on('game_over', (data) => {
   });
 });
 
-// Tangani klik emoji pada menu profil
 document.querySelectorAll('.btn-profile-emoji').forEach(btn => {
   btn.addEventListener('click', (e) => {
-    e.stopPropagation(); // Mencegah event klik tembus ke slot
+    e.stopPropagation();
     const soundFile = btn.getAttribute('data-sound');
 
     if (soundFile) {
@@ -363,7 +379,6 @@ document.querySelectorAll('.btn-profile-emoji').forEach(btn => {
       socket.emit('play_sound_effect', soundFile);
     }
 
-    // Sembunyikan semua menu reaksi setelah dipilih
     document.querySelectorAll('.profile-reaction-menu').forEach(menu => {
       menu.style.display = 'none';
     });
@@ -383,7 +398,6 @@ document.querySelectorAll('.btn-emoji').forEach(btn => {
   });
 });
 
-// Menerima trigger suara dari pemain lain
 socket.on('trigger_sound', (soundFile) => {
   playSoundEffect(soundFile);
 });
