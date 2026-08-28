@@ -108,16 +108,29 @@ io.on('connection', (socket) => {
     gameState.rightValue = null;
     gameState.consecutivePasses = 0;
 
+    // POT AWAL / TARUHAN WAJIB (Misal: Setiap pemain menyumbang 1,000 koin ke pot saat game dimulai)
+    tablePot = 0;
+    const initialPotFee = 1000;
+
     const deck = shuffle(FULL_DECK);
     const cardsPerPlayer = 7;
 
     players.forEach((p, index) => {
       p.hand = deck.slice(index * cardsPerPlayer, (index + 1) * cardsPerPlayer);
+      
+      // Potong koin pemain untuk taruhan awal pot meja
+      if (p.coins >= initialPotFee) {
+        p.coins -= initialPotFee;
+        tablePot += initialPotFee;
+      } else {
+        tablePot += p.coins;
+        p.coins = 0;
+      }
     });
 
     gameState.turnIndex = 0;
 
-    io.emit('receive_message', { sender: 'System', text: '🎮 Game dimulai! Semua pemain telah menerima kartu.' });
+    io.emit('receive_message', { sender: 'System', text: `🎮 Game dimulai! Pot meja terkumpul ${tablePot.toLocaleString()} koin dari taruhan awal.` });
     broadcastGameState();
   }
 
