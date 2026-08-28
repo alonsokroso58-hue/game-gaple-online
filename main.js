@@ -131,7 +131,12 @@ usernameInput.addEventListener('keypress', (e) => {
 });
 
 btnStartGame.addEventListener('click', () => socket.emit('start_game_req'));
-btnPass.addEventListener('click', () => socket.emit('pass_turn'));
+
+// TOMBOL PASS / LEWAT DITAMBAHKAN EFEK SOUND 'lewat.mp3'
+btnPass.addEventListener('click', () => {
+  playSoundEffect('lewat.mp3');
+  socket.emit('pass_turn');
+});
 
 // Close Game Over Modal
 if (btnCloseGo) {
