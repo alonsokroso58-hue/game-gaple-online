@@ -1,5 +1,5 @@
 /* ==========================================
-   STYLE UTAMA GAME GAPLE ONLINE (REVISI LENGKAP & UTUH DI HP)
+   STYLE UTAMA GAME GAPLE ONLINE (REVISI LENGKAP, UTUH, & RESPONSIVE)
    ========================================== */
 
 * {
@@ -58,15 +58,27 @@ header {
   flex-direction: column;
 }
 
-/* LOGO ORADO DI TENGAH MEJA */
+/* LOGO ORADO DI TENGAH MEJA (RESPONSIF HP & PC) */
 #table-logo {
   position: absolute;
-  width: 40%;
-  max-width: 180px;
-  opacity: 0.25;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 140px;
+  max-width: 30%;
+  height: auto;
+  opacity: 0.22;
   pointer-events: none;
   filter: drop-shadow(0px 0px 8px rgba(255, 255, 255, 0.95)) 
           drop-shadow(0px 0px 2px rgba(255, 255, 255, 1));
+}
+
+/* Otomatis besar dan bagus saat dibuka di PC / Laptop / Layar Lebar */
+@media screen and (min-width: 900px) {
+  #table-logo {
+    width: 280px;
+    max-width: 45%;
+  }
 }
 
 /* ==========================================
