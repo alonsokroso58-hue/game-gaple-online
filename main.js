@@ -18,7 +18,7 @@ const playerRight = document.getElementById('player-right');
 
 // Pot & Coins Elements
 const potAmountDisplay = document.getElementById('pot-amount');
-const myCoinsDisplay = document.getElementById('my-coins'); // Opsional jika ada di hand area
+const myCoinsDisplay = document.getElementById('my-coins'); 
 
 // Chat & Emoji Elements
 const btnToggleChat = document.getElementById('btn-toggle-chat');
@@ -283,7 +283,7 @@ function updatePlayerSlotContent(el, opponent) {
   }
 }
 
-// 8. UPDATE STATE REALTIME (TERMASUK POT MEJA DAN KOIN)
+// 8. UPDATE STATE REALTIME (TERMASUK POT MEJA DAN KOIN + AUTO PASS JIKA BUNTU)
 socket.on('update_board', (data) => {
   renderBoard(data.board);
 
@@ -295,7 +295,7 @@ socket.on('update_board', (data) => {
     potAmountDisplay.innerText = data.tablePot.toLocaleString();
   }
 
-  // Sinkronisasi Koin Pemain Sendiri (Jika dikirim server)
+  // Sinkronisasi Koin Pemain Sendiri
   if (data.myCoins !== undefined && myCoinsDisplay) {
     myCoinsDisplay.innerText = data.myCoins.toLocaleString();
   }
@@ -304,6 +304,12 @@ socket.on('update_board', (data) => {
     btnStartGame.style.display = 'none';
     statusDiv.innerText = data.isMyTurn ? 'GILIRAN KAMU!' : 'Menunggu giliran lawan...';
     statusDiv.style.color = data.isMyTurn ? '#f1c40f' : '#ffffff';
+
+    // Auto pass otomatis jika giliran sendiri dan kartu buntu
+    if (data.isMyTurn && data.canPass) {
+      playSoundEffect('lewat.mp3');
+      socket.emit('pass_turn');
+    }
   } else {
     btnStartGame.style.display = 'inline-block';
     statusDiv.innerText = 'Selamat Bertanding Turnamen Gaple Online';
