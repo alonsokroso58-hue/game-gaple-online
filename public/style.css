@@ -73,11 +73,11 @@ header {
           drop-shadow(0px 0px 2px rgba(255, 255, 255, 1));
 }
 
-/* Otomatis besar dan bagus saat dibuka di PC / Laptop / Layar Lebar */
+/* Ukuran besar khusus untuk PC / Laptop (Layar min 900px) */
 @media screen and (min-width: 900px) {
   #table-logo {
-    width: 280px;
-    max-width: 45%;
+    width: 480px;
+    max-width: 70%;
   }
 }
 
